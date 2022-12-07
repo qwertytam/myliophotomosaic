@@ -1,6 +1,26 @@
-# myliophotomosaic
-
+# myliophotomosaic - making image mosaics from Mylio photo library
 Python script(s) to create a photo mosaic. Photos sourced from Mylio photo library management software.
+
+## Contents
+* [General Info](#general-info)
+* [Requires](#requires)
+* [Setup](#setup)
+* [References](#references)
+
+## General Info
+The aim of this project is to create an image using a number of other images, i.e. a mosaic. The image to be recreated, is pixelated to provide a template for the mosaic images (one pixel = one image), then loop through each pixel in the template and find the image with the closest RGB value. The images would then be laid out side by side to recreate the image.
+
+## Requires
+See pip file.
+
+## Setup/Installation
+1. Clone the repo into your local environment
+2. Make sure you have pipenv installed and run the following commands within the project root folder
+```
+pipenv shell
+pipenv install pipfile
+```
+This will initiate a pipenv virtual environment and use the pipfile to install package dependencies
 
 ## To Use
 1. Select photos in Mylio using keyboard and/or mouse to use in the Mosaic
@@ -13,17 +33,21 @@ old_sql CREATE VIEW localdirs as WITH RECURSIVE FoldersAndChildren(Id, UniqueHas
 5. If you need to redo the view for some reason, run `sql drop view localdirs` to delete the previous one
 6. Then run the following on some selected media to see if this data looks right:
 ```
-selected > select LocalName, filenamenoext, MediaField(files, 1, 'format') Raw, MediaField(files, 2, 'format') NonRaw, MediaField(files, 3, 'format') Bundle, MediaField(files, 4, 'format') Display, MediaField(files, 4, 'format') XMP from media inner join localdirs on media.containingFolderHash = localdirs.uniqueHash where media.uniqueHash in ($_)
+selected > select LocalName, FileNameNoExt, LocalFileNameNoExt, MediaField(files, 1, 'format') Raw, MediaField(files, 2, 'format') NonRaw, MediaField(files, 3, 'format') Bundle, MediaField(files, 4, 'format') Display, MediaField(files, 4, 'format') XMP from media inner join localdirs on media.containingFolderHash = localdirs.uniqueHash where media.uniqueHash in ($_)
 ```
-7.  If this data looks right, then run the same query as above, but add: `> json -v` at the end - with a space before that. You can just press the up arrow to edit the previous command, then scroll to the end. Now that will output a json array containing objects with several properties - FileNameNoExt, LocalName, RAW, NonRAW, DisplayImage, XMP & Bundle extensions.
+7.  If this data looks right, then run the same query as above, but add: `> json -v` at the end - with a space before that. You can just press the up arrow to edit the previous command, then scroll to the end. Now that will output a json array containing objects with several properties - FileNameNoExt, LocalFileNameNoExt, LocalName, RAW, NonRAW, DisplayImage, XMP & Bundle extensions.
 8. The whole thing to get to your clipboard (apart from creating the view) is:
 ```
 cls
 
-selected > select LocalName, filenamenoext, MediaField(files, 1, 'format') Raw, MediaField(files, 2, 'format') NonRaw, MediaField(files, 3, 'format') Bundle, MediaField(files, 4, 'format') Display, MediaField(files, 4, 'format') XMP from media inner join localdirs on media.containingFolderHash = localdirs.uniqueHash where media.uniqueHash in ($_) > json -v
+selected > select LocalName, FileNameNoExt, LocalFileNameNoExt, MediaField(files, 1, 'format') Raw, MediaField(files, 2, 'format') NonRaw, MediaField(files, 3, 'format') Bundle, MediaField(files, 4, 'format') Display, MediaField(files, 4, 'format') XMP from media inner join localdirs on media.containingFolderHash = localdirs.uniqueHash where media.uniqueHash in ($_) > json -v
 
 copy
 ```
 9. Run script using...
 
-Reference: [Mylio Support Forum Topic](https://forum.mylio.com/t/list-of-file-path-and-names-for-search-or-filter-results/6093/4)
+
+## References & Inspiration:
+- [Mylio Support Forum Topic](https://forum.mylio.com/t/list-of-file-path-and-names-for-search-or-filter-results/6093/4)
+- [facemo - making image mosaics](https://github.com/MstrFunkBass/facemo)
+- [Google Python style guide](https://google.github.io/styleguide/pyguide.html)
