@@ -1,7 +1,8 @@
 # Package specific
 *.jpg
 *.txt
-main_imgs/
+mo_imgs/
+out_imgs/
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
