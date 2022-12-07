@@ -44,10 +44,13 @@ selected > select LocalName, FileNameNoExt, LocalFileNameNoExt, MediaField(files
 
 copy
 ```
-9. Run script using...
+9. Run script using `python main.py`, specifying at a minimum `--main_img` and `--source_imgs`
 
 
 ## References & Inspiration:
 - [Mylio Support Forum Topic](https://forum.mylio.com/t/list-of-file-path-and-names-for-search-or-filter-results/6093/4)
 - [facemo - making image mosaics](https://github.com/MstrFunkBass/facemo)
 - [Google Python style guide](https://google.github.io/styleguide/pyguide.html)
+
+## Thanks
+- To Mylio users and support for providing invaluable support for SQL and other tips
