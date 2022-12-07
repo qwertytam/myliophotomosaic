@@ -6,6 +6,7 @@ import argparse
 
 def main(main_img : str,
         source_imgs : str,
+        out_file : str = None,
         target_res_main : tuple = (100, 100),
         target_res_src : tuple = (40, 40),
         disp_img_progress : bool = False,
@@ -57,7 +58,9 @@ def main(main_img : str,
     # Generate the mosaic
     canvas = itools.generate_mosaic(target_res_main, target_res_src, images, image_idx)
     canvas.show()
-    # canvas.save('../Images/Exports/export.jpg')
+
+    if out_file:
+        canvas.save(out_file)
 
 
 if __name__ == "__main__":
@@ -71,6 +74,10 @@ if __name__ == "__main__":
     parser.add_argument("--source_imgs",
                         help ="Text file with json copied from Mylio console",
                         required=True)
+
+    parser.add_argument("--out_file",
+                        help ="File path and name to save output to",
+                        required=False)
 
     help = "target resolution as number of images to make up final image in "
     help += "format `height width` e.g. `100 100`"
@@ -97,6 +104,7 @@ if __name__ == "__main__":
     # Call main script
     main(args.main_img,
         args.source_imgs,
+        args.out_file,
         tuple(args.target_res_main),
         tuple(args.target_res_src),
         args.disp_img_progress,
