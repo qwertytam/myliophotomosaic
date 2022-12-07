@@ -11,7 +11,7 @@ def main(mo_img : str,
         mo_iw : int = 100,
         src_res : tuple = (40, 40),
         disp_img_progress : bool = False,
-        max_imgs : int = 100):
+        max_imgs : int = None):
 
     # Load our main image
     face_im_arr = itools.load_img_as_arr(mo_img)
@@ -36,9 +36,12 @@ def main(mo_img : str,
 
     # Load in json for source image info from Mylio
     src_imgs_json = mylio.load_mylio_json(source_imgs)
+    if max_imgs is None:
+        max_imgs = len(src_imgs_json)
 
     # Create a list of all images as np arrays
-    # Set size for mosaic images, loop through images and resize using resize_image() function
+    # Set size for mosaic images, loop through images and resize using
+    # resize_image() function
     images = itools.get__resize_source_imgs(src_imgs_json, src_res, max_imgs)
 
     # Let's have a look at one of the mosaic images
@@ -50,7 +53,6 @@ def main(mo_img : str,
 
     # Get mean of RGB values for each image
     # This will store the mean Red, Green and Blue values of each mosaic image
-    # image_values = np.apply_over_axes(np.mean, images_array, [1,2]).reshape(len(images),3)
     image_values = itools.get_rgb_mean(images_array)
 
     # Set KDTree for image_values
@@ -98,10 +100,8 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction)
 
     parser.add_argument("--max_imgs",
-                        help="Maximum number of source images to get",
-                        default=100,
-                        type=int,
-                        required=False)
+                        help="Optional, maximum number of source images to get, else use all",
+                        type=int)
 
     args = parser.parse_args()
 
