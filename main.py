@@ -3,27 +3,31 @@ import mylio
 import tree_tools as ttools
 import random
 import argparse
+import sys
 
-def main(main_img : str,
+def main(mo_img : str,
         source_imgs : str,
         out_file : str = None,
-        target_res_main : tuple = (100, 100),
-        target_res_src : tuple = (40, 40),
+        mo_iw : int = 100,
+        src_res : tuple = (40, 40),
         disp_img_progress : bool = False,
         max_imgs : int = 100):
 
     # Load our main image
-    face_im_arr = itools.load_img_as_arr(main_img)
+    face_im_arr = itools.load_img_as_arr(mo_img)
     if disp_img_progress:
         itools.plt_img_from_arr(face_im_arr)
 
     # Store width and height of main image
-    height = face_im_arr.shape[0]
-    width = face_im_arr.shape[1]
+    (height, width) = itools.get_img_arr_hw(face_im_arr)
+
+    # Calculate target mosiac resolution
+    ar = itools.get_img_arr_ar(face_im_arr)
+    mo_res = (int(mo_iw*ar) ,mo_iw)
 
     # Create a template for the mosaic by index slicing the image, using the
     # step for rows and columns to divide the resolution
-    mos_template = face_im_arr[::(height//target_res_main[0]), ::(width//target_res_main[1])]
+    mos_template = face_im_arr[::(height//mo_res[0]), ::(width//mo_res[1])]
     if disp_img_progress:
         itools.plt_img_from_arr(mos_template)
 
@@ -35,7 +39,7 @@ def main(main_img : str,
 
     # Create a list of all images as np arrays
     # Set size for mosaic images, loop through images and resize using resize_image() function
-    images = itools.get__resize_source_imgs(src_imgs_json, target_res_src, max_imgs)
+    images = itools.get__resize_source_imgs(src_imgs_json, src_res, max_imgs)
 
     # Let's have a look at one of the mosaic images
     if disp_img_progress:
@@ -53,10 +57,10 @@ def main(main_img : str,
     tree = ttools.set_tree(image_values)
 
     # Find the best match for each 'pixel' of the template
-    image_idx = ttools.find_best_match(target_res_main, mos_template, tree, min(max_imgs, 40))
+    image_idx = ttools.find_best_match(mo_res, mos_template, tree, min(max_imgs, 40))
     
     # Generate the mosaic
-    canvas = itools.generate_mosaic(target_res_main, target_res_src, images, image_idx)
+    canvas = itools.generate_mosaic(mo_res, src_res, images, image_idx)
     canvas.show()
 
     if out_file:
@@ -67,26 +71,26 @@ if __name__ == "__main__":
     # Construct argument parser
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--main_img",
-                        help="Main image file path and name",
+    parser.add_argument("--mo_img",
+                        help="Mosaic image file path and name",
                         required=True)
 
     parser.add_argument("--source_imgs",
-                        help ="Text file with json copied from Mylio console",
+                        help ="Text file with json copied from Mylio console for source images",
                         required=True)
 
     parser.add_argument("--out_file",
-                        help ="File path and name to save output to",
+                        help ="File path and name to save output mosaic to",
                         required=False)
 
-    help = "target resolution as number of images to make up final image in "
-    help += "format `height width` e.g. `100 100`"
-    parser.add_argument("--target_res_main", help=help, required=False,
-                        default=(100, 100), nargs='+', type=int)
+    help = "How many source images for the width of the mosaic; "
+    help += "height determined by mosaic image aspect ratio"
+    parser.add_argument("--mo_iw", help=help, required=False,
+                        default=100, type=int)
 
-    help = "resolution for mosaic images in "
+    help = "Resolution for source images in output mosiac "
     help += "format `height width` e.g. `40 40`"
-    parser.add_argument("--target_res_src", help=help, required=False,
+    parser.add_argument("--src_res", help=help, required=False,
                         default=(40, 40), nargs='+', type=int)
 
     parser.add_argument("--disp_img_progress",
@@ -102,10 +106,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Call main script
-    main(args.main_img,
+    main(args.mo_img,
         args.source_imgs,
         args.out_file,
-        tuple(args.target_res_main),
-        tuple(args.target_res_src),
+        args.mo_iw,
+        tuple(args.src_res),
         args.disp_img_progress,
         args.max_imgs)

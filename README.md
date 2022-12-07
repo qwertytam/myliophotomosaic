@@ -44,7 +44,7 @@ selected > select LocalName, FileNameNoExt, LocalFileNameNoExt, MediaField(files
 
 copy
 ```
-9. Run script using `python main.py`, specifying at a minimum `--main_img` and `--source_imgs`
+9. Run script using `python main.py`, specifying at a minimum `--mo_img` and `--source_imgs`
 
 
 ## References & Inspiration:

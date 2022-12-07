@@ -78,6 +78,37 @@ def img_list_to_arr(images : list) -> np.ndarray:
     return np.asarray(images)
 
 
+def get_img_arr_hw(image : np.ndarray) -> tuple:
+    """Get image array heigh and width
+
+    Args:
+        image: Numpy array of image to get heigh and width of
+
+    Returns:
+        Integer tuple of (heigh, width)
+    
+    Raises:
+        None
+    """
+    return (image.shape[0], image.shape[1])
+
+
+def get_img_arr_ar(image : np.ndarray) -> float:
+    """Get image array aspect ratio (height to width)
+
+    Args:
+        image: Numpy array of image to get aspect ratio of
+
+    Returns:
+        Float of aspect ratio
+    
+    Raises:
+        None
+    """
+    (h, w) = get_img_arr_hw(image)
+    return h/w
+
+
 def plt_img(image : Image):
     """Plot image
     
@@ -157,16 +188,10 @@ def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -
     skipped = 0
     num_src_imgs = len(src_json)
     print_int = 25
-    # ndims = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    # nshapes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     for i, src in enumerate(src_json):
         # Check if path points to a valid file; if not skip
         try:
             im = load_img_as_arr(src['FullPath'])
-
-            # Ignore any image that isn't a three-dimensional array
-            # ndims[im.ndim] += 1
-
             if im.ndim != 3:
                 skipped += 1
                 if skipped < 10:
@@ -175,7 +200,6 @@ def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -
 
             im = resize_img(img_from_arr(im), size)
             # Some images have a fourth channel? Remove them
-            # nshapes[im.shape[2]] += 1
             if im.shape[2] != 3:
                 skipped += 1
                 if skipped < 10:
@@ -183,6 +207,7 @@ def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -
                 continue
 
             images.append(im)
+
         except FileNotFoundError as e:
             skipped += 1
             if skipped < 10:
@@ -198,23 +223,19 @@ def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -
             if skipped < 10:
                 print(f'\n{(i+1):,}: {src}\n{e}\n')
 
-
         if (i+1) % print_int == 0:
             print(f'Processed {(i+1):,} found {len(images):,} skipped {skipped:,} {(i+1)/num_src_imgs:.2%} complete', end='\r')
         
         if max_imgs > 0 and len(images) >= max_imgs:
-            print(f'\nStopping early at {max_imgs:,}')
+            print(f'\nFound max images; stopping early at {len(images):,}')
             break
 
     print(f'\nProcessed {(i+1):,} found {len(images):,} skipped {skipped:,} {(i+1)/(num_src_imgs):.2%} complete')
 
-    # print(f'ndims: {ndims}')
-    # print(f'nshapes: {nshapes}')
-
     return images
 
-def generate_mosaic(target_res_main : tuple,
-                    target_res_src : tuple,
+def generate_mosaic(mo_res : tuple,
+                    src_res : tuple,
                     images : list, 
                     image_idx : np.ndarray,
                     ) -> Image:
@@ -225,9 +246,9 @@ def generate_mosaic(target_res_main : tuple,
     don't overlap.
 
     Args:
-        target_res_main: Target resolution for the mosaic
+        mo_res: Target resolution for the mosaic
 
-        target_res_src: Target resolution of the source images
+        src_res: Target resolution of the source images
 
         images: List of source images
 
@@ -241,14 +262,14 @@ def generate_mosaic(target_res_main : tuple,
     """
     
     canvas = Image.new('RGB',
-                        (target_res_src[1]*target_res_main[1],
-                         target_res_src[0]*target_res_main[0])
+                        (src_res[1]*mo_res[1],
+                         src_res[0]*mo_res[0])
                     )
 
-    for i in range(target_res_main[0]):
-        for j in range(target_res_main[1]):
+    for i in range(mo_res[0]):
+        for j in range(mo_res[1]):
             arr = images[image_idx[i, j]]
-            x, y = j*target_res_src[1], i*target_res_src[0]
+            x, y = j*src_res[1], i*src_res[0]
             im = img_from_arr(arr)
             canvas.paste(im, (x,y))
 
