@@ -48,8 +48,6 @@ def find_best_match(target_res : tuple,
     Raises:
         None 
     """
-    # Store the indices of best match images
-    # 
     image_idx = np.zeros(target_res, dtype=np.uint32)
     for i in range(target_res[0]):
         for j in range(target_res[1]):
