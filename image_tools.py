@@ -44,7 +44,8 @@ def resize_img(img : Image, size : tuple) -> np.ndarray:
     Raises:
         None
     """
-    resz_img = ImageOps.fit(img, size, Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+    resz_img = ImageOps.fit(img, size, Image.Resampling.LANCZOS,
+                            centering=(0.5, 0.5))
     return np.array(resz_img)
 
 
@@ -165,7 +166,9 @@ def get_rgb_mean(imgs_array) -> np.ndarray:
     return mns.reshape(len(imgs_array),3)
 
 
-def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -> list:
+def get__resize_source_imgs(src_json : dict,
+                            size : tuple,
+                            max_imgs : int = None) -> list:
     """Gets list of images from json list
     
     Iterates through dictionary to get file path, checks if path is valid,
@@ -186,6 +189,7 @@ def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -
     """
     images = []
     skipped = 0
+    skip_print_limit = 0
     num_src_imgs = len(src_json)
     print_int = 25
     for i, src in enumerate(src_json):
@@ -194,7 +198,7 @@ def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -
             im = load_img_as_arr(src['FullPath'])
             if im.ndim != 3:
                 skipped += 1
-                if skipped < 10:
+                if skipped < skip_print_limit:
                     print(f'\n{(i+1):,}: im.ndim != 3\n{src}\n')
                 continue
 
@@ -202,7 +206,7 @@ def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -
             # Some images have a fourth channel? Remove them
             if im.shape[2] != 3:
                 skipped += 1
-                if skipped < 10:
+                if skipped < skip_print_limit:
                     print(f'\n{(i+1):,}: im.shape[2] != 3\n{src}\n')
                 continue
 
@@ -210,27 +214,34 @@ def get__resize_source_imgs(src_json : dict, size : tuple, max_imgs : int = 0) -
 
         except FileNotFoundError as e:
             skipped += 1
-            if skipped < 10:
+            if skipped < skip_print_limit:
                 print(f'\n{(i+1):,}: {src}\n{e}\n')
 
         except UnidentifiedImageError as e:
             skipped += 1
-            if skipped < 10:
+            if skipped < skip_print_limit:
                 print(f'\n{(i+1):,}: {src}\n{e}\n')
 
         except OSError as e:
             skipped += 1
-            if skipped < 10:
+            if skipped < skip_print_limit:
                 print(f'\n{(i+1):,}: {src}\n{e}\n')
 
         if (i+1) % print_int == 0:
-            print(f'Processed {(i+1):,} found {len(images):,} skipped {skipped:,} {(i+1)/num_src_imgs:.2%} complete', end='\r')
+            print(f'Processed {(i+1):,} ' +
+                f'found {len(images):,} ' +
+                f'skipped {skipped:,} ' +
+                f'{(i+1)/num_src_imgs:.2%}  complete',
+                end='\r')
         
-        if max_imgs > 0 and len(images) >= max_imgs:
+        if max_imgs is not None and len(images) >= max_imgs:
             print(f'\nFound max images; stopping early at {len(images):,}')
             break
 
-    print(f'\nProcessed {(i+1):,} found {len(images):,} skipped {skipped:,} {(i+1)/(num_src_imgs):.2%} complete')
+    print(f'\nProcessed {(i+1):,} ' +
+        f'found {len(images):,} ' +
+        f'skipped {skipped:,} ' +
+        f'{(i+1)/(num_src_imgs):.2%} complete')
 
     return images
 
