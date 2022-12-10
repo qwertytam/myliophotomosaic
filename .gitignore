@@ -3,6 +3,7 @@
 *.txt
 mo_imgs/
 out_imgs/
+src_imgs/
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
