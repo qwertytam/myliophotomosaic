@@ -9,7 +9,9 @@
             "justMyCode": true,
             "args" : ["--source_imgs", "./images.txt", "--src_res", "30", "30",
                       "--mo_iw", "150", "--mo_img", "./mo_imgs/IMG_3754.jpg",
-                      "--out_file", "./out_imgs/debug.jpg"]
+                      "--out_file", "./out_imgs/debug.jpg",
+                      "--colour_space", "HSV",
+                      "--src_save", "./src_imgs/"]
         },
     ]
 }
