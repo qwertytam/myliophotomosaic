@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import image
 from pillow_heif import register_heif_opener
+import json
 
 register_heif_opener()
 
@@ -176,7 +177,8 @@ def get_colour_mean(imgs_array : np.ndarray) -> np.ndarray:
 def get_resize_source_imgs(src_json : dict,
                             size : tuple,
                             max_imgs : int = None,
-                            colour_space : str = 'RGB') -> list:
+                            colour_space : str = 'RGB',
+                            src_save : str = None) -> list:
     """Gets list of images from json list
     
     Iterates through dictionary to get file path, checks if path is valid,
@@ -194,6 +196,9 @@ def get_resize_source_imgs(src_json : dict,
 
         colour_space: Colour space mode to load image array as. See Pillow
         'Modes' for further info. Default used here is 'RGB'
+        
+        src_save: Directory to save resized source images to. Uses index
+        number for file name e.g. 123.jpg
 
     Returns:
         A list of the valid images as three-dimensional numpy arrays
@@ -203,7 +208,7 @@ def get_resize_source_imgs(src_json : dict,
     """
     images = []
     skipped = 0
-    skip_print_limit = 0
+    skip_print_limit = 10
     num_src_imgs = len(src_json)
     print_int = 25
     for i, src in enumerate(src_json):
@@ -212,6 +217,18 @@ def get_resize_source_imgs(src_json : dict,
             im = load_img_as_arr(src['FullPath'], colour_space)
             im = resize_img(img_from_arr(im), size)
             images.append(im)
+            
+            num_channels = im.shape[im.ndim - 1]
+            im_mn = np.apply_over_axes(np.mean, im, [0, 1])
+            src_json[i]['channel_means'] = im_mn.reshape(-1).tolist()
+
+            # src_json[i]['im_arr'] = np.apply_over_axes(np.mean, im, [0, 1])
+            if src_save is not None:
+                canvas = Image.new(colour_space, size)
+                canvas.paste(img_from_arr(im))
+                if canvas.mode != 'RGB':
+                    canvas = canvas.convert('RGB')
+                canvas.save(src_save + str(i) + '.jpg')
 
         except FileNotFoundError as e:
             skipped += 1
@@ -243,6 +260,9 @@ def get_resize_source_imgs(src_json : dict,
         f'found {len(images):,} ' +
         f'skipped {skipped:,} ' +
         f'{(i+1)/(num_src_imgs):.2%} complete')
+        
+    with open(src_save + 'src_json.json', 'w') as outfile:
+        json.dump(src_json, outfile)
 
     return images
 
@@ -276,7 +296,6 @@ def generate_mosaic(mo_res : tuple,
     Raises:
         None
     """
-    
     canvas = Image.new(colour_space,
                         (src_res[1]*mo_res[1],
                          src_res[0]*mo_res[0])
