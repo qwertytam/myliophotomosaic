@@ -12,7 +12,8 @@ def main(mo_img : str,
         src_res : tuple = (40, 40),
         disp_img_progress : bool = False,
         max_imgs : int = None,
-        colour_space : str = 'RGB'):
+        colour_space : str = 'RGB',
+        src_save : str = None):
 
     # Load our main image
     face_im_arr = itools.load_img_as_arr(mo_img, colour_space)
@@ -44,8 +45,8 @@ def main(mo_img : str,
     # Set size for mosaic images, loop through images and resize using
     # resize_image() function
     images = itools.get_resize_source_imgs(src_imgs_json, src_res,
-                                           max_imgs, colour_space)
-
+                                           max_imgs, colour_space, src_save)
+    
     # Let's have a look at one of the mosaic images
     if disp_img_progress:
         itools.plt_img_from_arr(images[random.randrange(0, len(images)-1)])
@@ -110,6 +111,9 @@ if __name__ == "__main__":
                         type=str,
                         default='RGB')
     
+    parser.add_argument("--src_save",
+                        type=str)
+    
     args = parser.parse_args()
 
     # Call main script
@@ -120,4 +124,5 @@ if __name__ == "__main__":
         tuple(args.src_res),
         args.disp_img_progress,
         args.max_imgs,
-        args.colour_space)
+        args.colour_space,
+        args.src_save)
