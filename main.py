@@ -11,10 +11,11 @@ def main(mo_img : str,
         mo_iw : int = 100,
         src_res : tuple = (40, 40),
         disp_img_progress : bool = False,
-        max_imgs : int = None):
+        max_imgs : int = None,
+        colour_space : str = 'RGB'):
 
     # Load our main image
-    face_im_arr = itools.load_img_as_arr(mo_img)
+    face_im_arr = itools.load_img_as_arr(mo_img, colour_space)
     if disp_img_progress:
         itools.plt_img_from_arr(face_im_arr)
 
@@ -42,7 +43,8 @@ def main(mo_img : str,
     # Create a list of all images as np arrays
     # Set size for mosaic images, loop through images and resize using
     # resize_image() function
-    images = itools.get__resize_source_imgs(src_imgs_json, src_res, max_imgs)
+    images = itools.get_resize_source_imgs(src_imgs_json, src_res,
+                                           max_imgs, colour_space)
 
     # Let's have a look at one of the mosaic images
     if disp_img_progress:
@@ -51,9 +53,9 @@ def main(mo_img : str,
     # Convert list to np array
     images_array = itools.img_list_to_arr(images)
 
-    # Get mean of RGB values for each image
-    # This will store the mean Red, Green and Blue values of each mosaic image
-    image_values = itools.get_rgb_mean(images_array)
+    # Get mean of colour values for each image
+    # This will store the mean of each colour channel for each mosaic image
+    image_values = itools.get_colour_mean(images_array)
 
     # Set KDTree for image_values
     tree = ttools.set_tree(image_values)
@@ -103,6 +105,11 @@ if __name__ == "__main__":
                         help="Optional, maximum number of source images to get, else use all",
                         type=int)
 
+    parser.add_argument("--colour_space",
+                        help="Optional, select colour space to use; options are default 'RGB' or 'HSV'",
+                        type=str,
+                        default='RGB')
+    
     args = parser.parse_args()
 
     # Call main script
@@ -112,4 +119,5 @@ if __name__ == "__main__":
         args.mo_iw,
         tuple(args.src_res),
         args.disp_img_progress,
-        args.max_imgs)
+        args.max_imgs,
+        args.colour_space)

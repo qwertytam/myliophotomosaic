@@ -7,7 +7,7 @@ from pillow_heif import register_heif_opener
 register_heif_opener()
 
 
-def load_img_as_arr(source : str) -> np.ndarray:
+def load_img_as_arr(source : str, colour_space : str = 'RGB') -> np.ndarray:
     """Gets rgb data for image.
     
     Opens an image from specified source and returns a numpy array with
@@ -15,15 +15,19 @@ def load_img_as_arr(source : str) -> np.ndarray:
 
     Args:
         source: File path and name to image
+        colour_space: Colour space mode to load image array as. See Pillow
+        'Modes' for further info. Default used here is 'RGB'
 
     Returns:
-        A numpy array with image rgb data. Array is three dimensional by
-        height, width, and number of channels (i.e. three)
+        A numpy array with image colour channel data. Array is three dimensional
+        by height, width, and number of channels (i.e. three)
     
     Raises:
         None
     """
     with Image.open(source) as im:
+        if im.mode != 'RGB':
+            im = im.convert('RGB')
         im_arr = np.asarray(im)
     return im_arr
 
@@ -146,29 +150,33 @@ def plt_img_from_arr(image_arr : np.ndarray):
     plt_img(img_from_arr(image_arr))
 
 
-def get_rgb_mean(imgs_array) -> np.ndarray:
-    """Get mean of RGB values for each image in list
+def get_colour_mean(imgs_array : np.ndarray) -> np.ndarray:
+    """Get mean of color channel values for each image in list
     
     Args:
-        imgs_array: Input array of images to get rgb mean of
+        imgs_array: Input array of images to get color channel mean of
 
     Returns:
-        numpy array n x 3 dimensions, where n is the number of images, and each
-        dimension is the mean for each rgb channel
+        numpy array n x m dimensions, where n is the number of images, and each
+        dimension is the mean for each m colour channel
 
     Raises:
         None
     """
     # Find means
+    # print(f'array shape: {imgs_array.shape}')
+    # print(f'array dim: {imgs_array.ndim}')
+    num_channels = imgs_array.shape[imgs_array.ndim - 1]
     mns = np.apply_over_axes(np.mean, imgs_array, [1,2])
 
-    # Result array is n x 1 x 1 x 3 dimensions, so reshape to n x 3
-    return mns.reshape(len(imgs_array),3)
+    # Result array is n x 1 x 1 x m dimensions, so reshape to n x m
+    return mns.reshape(len(imgs_array), num_channels)
 
 
-def get__resize_source_imgs(src_json : dict,
+def get_resize_source_imgs(src_json : dict,
                             size : tuple,
-                            max_imgs : int = None) -> list:
+                            max_imgs : int = None,
+                            colour_space : str = 'RGB') -> list:
     """Gets list of images from json list
     
     Iterates through dictionary to get file path, checks if path is valid,
@@ -178,8 +186,14 @@ def get__resize_source_imgs(src_json : dict,
     Args:
         src_json: JSON dictionary, where each entry has the key 'FullPath'
         that provides a file path and name for the image of interest
+        
+        size: Resolution for source images in output mosiac; format
+        `height width` e.g. `40 40`"
 
         max_imgs: optional, if given, then only gets this number of images
+
+        colour_space: Colour space mode to load image array as. See Pillow
+        'Modes' for further info. Default used here is 'RGB'
 
     Returns:
         A list of the valid images as three-dimensional numpy arrays
@@ -195,21 +209,8 @@ def get__resize_source_imgs(src_json : dict,
     for i, src in enumerate(src_json):
         # Check if path points to a valid file; if not skip
         try:
-            im = load_img_as_arr(src['FullPath'])
-            if im.ndim != 3:
-                skipped += 1
-                if skipped < skip_print_limit:
-                    print(f'\n{(i+1):,}: im.ndim != 3\n{src}\n')
-                continue
-
+            im = load_img_as_arr(src['FullPath'], colour_space)
             im = resize_img(img_from_arr(im), size)
-            # Some images have a fourth channel? Remove them
-            if im.shape[2] != 3:
-                skipped += 1
-                if skipped < skip_print_limit:
-                    print(f'\n{(i+1):,}: im.shape[2] != 3\n{src}\n')
-                continue
-
             images.append(im)
 
         except FileNotFoundError as e:
@@ -249,6 +250,7 @@ def generate_mosaic(mo_res : tuple,
                     src_res : tuple,
                     images : list, 
                     image_idx : np.ndarray,
+                    colour_space : str = 'RGB',
                     ) -> Image:
     """Generate mosaic
 
@@ -264,6 +266,9 @@ def generate_mosaic(mo_res : tuple,
         images: List of source images
 
         image_idx: Array with best source image match indicies
+        
+        colour_space: Colour space mode to load image array as. See Pillow
+        'Modes' for further info. Default used here is 'RGB'
     
     Return:
         Mosaic
@@ -272,7 +277,7 @@ def generate_mosaic(mo_res : tuple,
         None
     """
     
-    canvas = Image.new('RGB',
+    canvas = Image.new(colour_space,
                         (src_res[1]*mo_res[1],
                          src_res[0]*mo_res[0])
                     )
