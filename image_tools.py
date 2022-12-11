@@ -175,9 +175,9 @@ def get_colour_mean(imgs_array : np.ndarray) -> np.ndarray:
 
 def get_resize_source_imgs(src_json : dict,
                            size : tuple,
-                           max_source_imgs : int = None,
+                           max_tesserae : int = None,
                            colour_space : str = 'RGB',
-                           save_tesserae : str = None) -> list:
+                           save_tesserae : str = None) -> tuple:
     """Gets list of images from json list
     
     Iterates through dictionary to get file path, checks if path is valid,
@@ -189,8 +189,8 @@ def get_resize_source_imgs(src_json : dict,
             that provides a file path and name for the image of interest
         size: Resolution for source images in output mosiac; format
             `height width` e.g. `40 40`"
-        max_source_imgs: optional, if given, then only gets this number of images
-            colour_space: Colour space mode to load image array as. See Pillow
+        max_tesserae: Optional, if given, then only gets this number of tesserae
+        colour_space: Colour space mode to load image array as. See Pillow
             'Modes' for further info. Default used here is 'RGB'
         save_tesserae: Directory to save resized source images to. Uses index
             number for file name e.g. 123.jpg
@@ -201,21 +201,26 @@ def get_resize_source_imgs(src_json : dict,
     Raises:
         None
     """
-    src_ims = []
-    src_ims_cc_means = []
-    src_ims_meta = []
+    tesserae = []
+    tesserae_mns = []
+    tesserae_meta = []
 
     skipped = 0
     skip_print_limit = 10
     print_int = 10
 
     num_src_ims = len(src_json)
+    
+    if max_tesserae is None:
+        max_tesserae = num_src_ims
+    else:
+        max_tesserae = min(max_tesserae, num_src_ims)
 
     for i, src in enumerate(src_json):
         idx = i - skipped
         # Check if path points to a valid file; if not skip
         try:
-            im = load_img_as_arr(src['FullPath'], colour_space)
+            src_im = load_img_as_arr(src['FullPath'], colour_space)
 
         except FileNotFoundError as e:
             skipped += 1
@@ -230,57 +235,58 @@ def get_resize_source_imgs(src_json : dict,
             continue            
         
         # Get resized image array and append to our list
-        im = resize_img(img_from_arr(im), size)
-        src_ims.append(im)
+        tessera = resize_img(img_from_arr(src_im), size)
+        tesserae.append(tessera)
         
-        num_channels = im.shape[im.ndim - 1]
-        im_mn = np.apply_over_axes(np.mean, im, [0,1]).reshape(-1)
-        src_ims_cc_means.append(im_mn)
+        # num_channels = im.shape[im.ndim - 1]
+        tessera_mn = np.apply_over_axes(np.mean, tessera, [0,1]).reshape(-1)
+        tesserae_mns.append(tessera_mn)
         
         # Build resized source image file path and name
-        sfp = save_tesserae + f'{idx:06d}' + '.jpg'
+        tfp = save_tesserae + f'{idx:06d}' + '.jpg'
 
         # Construct dictionary of image details and add to list
-        im_meta = {
+        tessera_meta = {
             'idx': idx,
-            'cc_means': im_mn.tolist(),
-            'source_file_path': sfp,
-            'original_file_path': src['FullPath'],
+            'tessera_means': tessera_mn.tolist(),
+            'tessera_fp': tfp,
+            'source_fp': src['FullPath'],
         }
-        src_ims_meta.append(im_meta)
+        tesserae_meta.append(tessera_meta)
 
         if save_tesserae is not None:
             canvas = Image.new(colour_space, size)
-            canvas.paste(img_from_arr(im))
+            canvas.paste(img_from_arr(tessera))
             if canvas.mode != 'RGB':
                 canvas = canvas.convert('RGB')
-            canvas.save(sfp)
+            canvas.save(tfp)
 
         # Progress printing
+        nte = len(tesserae)
         if (i+1) % print_int == 0:
-            print(f'Processed {(i+1):,} ' +
-                f'found {len(src_ims):,} ' +
+            print(f'Processed {(i+1):,} source images ' +
+                f'found {nte:,} ' +
                 f'skipped {skipped:,} ' +
-                f'{(i+1)/num_src_ims:.2%}  complete',
+                f'{(i+1)/max_tesserae:.2%}  complete',
                 end='\r')
         
         # Stop if hit max image count
-        if max_source_imgs is not None and len(src_ims) >= max_source_imgs:
-            print(f'\nFound max images; stopping early at {len(src_ims):,}')
+        if nte >= max_tesserae:
+            print(f'\nFound max tesserae; stopping early at {nte:,}')
             break
 
     # End of loop status
-    print(f'\nProcessed {(i+1):,} ' +
-        f'found {len(src_ims):,} ' +
-        f'skipped {skipped:,} ' +
-        f'{(i+1)/(num_src_ims):.2%} complete')
+    print(f'\nProcessed {(i+1):,} source images ' +
+          f'found {nte:,} ' +
+          f'skipped {skipped:,} ' +
+          f'{(i+1)/max_tesserae:.2%}  complete')
     
     if save_tesserae is not None:
         with open(save_tesserae + 'tesserae.json', 'w') as outfile:
-            json.dump(src_ims_meta, outfile)
+            json.dump(tesserae_meta, outfile)
 
-    src_ims = img_list_to_arr(src_ims)
-    return src_ims, np.asarray(src_ims_cc_means)
+    tesserae = img_list_to_arr(tesserae)
+    return tesserae, np.asarray(tesserae_mns)
 
 
 def generate_mosaic(mosaic_res : tuple,
@@ -323,16 +329,47 @@ def generate_mosaic(mosaic_res : tuple,
 
     return canvas
 
-def get_means(max_source_imgs, saved_tesserae):
+def get_tesserae(saved_tesserae : str,
+              max_tesserae : int = None) -> tuple:
+    # Read in json
     with open(saved_tesserae, 'r') as f:
         ft = f.read()
-        src_imgs_json = json.loads(ft)
-
-    img_means = []
-    for i, src in enumerate(src_imgs_json):
-        if 'channel_means' in src:
-            img_means.append(src['channel_means'])
-        # else:
-            # print(f'uh oh for {src}')
+        tesserae_json = json.loads(ft)
+    ntej = len(tesserae_json)
+    print(f'Read in tesserae_json with length {ntej:,}')
     
-    return img_means
+    tesserae = []
+    tesserae_mns = []
+
+    print_int = 10
+    
+    if max_tesserae is None:
+        max_tesserae = ntej
+    else:
+        max_tesserae = min(max_tesserae, ntej)
+
+    for i, tj in enumerate(tesserae_json):
+        if i != tj['idx']:
+            print(f'WARNING: i {i:,} does not equal idx {tj["idx"]:,}')
+        tesserae_mns.append(tj['tessera_means'])
+        tessera = load_img_as_arr(tj['tessera_fp'])
+        tesserae.append(tessera)
+        
+        # Progress printing
+        nte = len(tesserae)
+        if nte % print_int == 0:
+            print(f'Processed {nte:,} tesserae ' +
+                f'{nte/max_tesserae:.2%}  complete',
+                end='\r')
+        
+        # Stop if hit max image count
+        if max_tesserae is not None and nte >= max_tesserae:
+            print(f'\nFound max tesserae; stopping early at {nte:,}')
+            break
+
+    # End of loop status
+    print(f'\nProcessed {nte:,} tesserae ' +
+          f'{nte/max_tesserae:.2%}  complete')
+    
+    tesserae = img_list_to_arr(tesserae)
+    return tesserae, np.asarray(tesserae_mns)
