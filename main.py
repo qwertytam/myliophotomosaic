@@ -82,9 +82,9 @@ def main(mosaic_fp_in : str,
     # Create a list of all images as np arrays
     # Set size for mosaic images, loop through images and resize using
     # resize_image() function
-    # if src_json is not None:
+    # if saved_tesserae is not None:
     #     images = 1
-    #     image_means = itools.get_means(max_source_imgs, src_json)
+    #     image_means = itools.get_means(max_source_imgs, saved_tesserae)
     #     image_values = np.asarray(image_means)
 
     if True:
@@ -123,57 +123,65 @@ if __name__ == "__main__":
     # Construct argument parser
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--mosaic_fp_in",
+    parser.add_argument('--mosaic_fp_in',
                         help="Mosaic image file path and name",
+                        type=str,
                         required=True)
 
-    parser.add_argument("--source_mylio_json",
-                        help ="Text file with json copied from Mylio " +
+    parser.add_argument('--source_mylio_json',
+                        help="Text file with json copied from Mylio " +
                         "console for source images",
-                        required=True)
-
-    parser.add_argument("--mosaic_fp_out",
+                        type=str,
+                        required=False)
+            
+    parser.add_argument('--saved_tesserae',
+                        help="File path to saved tesserae from preivous run" +
+                        "of this script",
+                        required=False,
+                        type=str)
+    
+    parser.add_argument('--mosaic_fp_out',
                         help ="File path and name to save output mosaic to",
                         required=False)
 
     help = "How many source images for the width of the mosaic; "
     help += "height determined by mosaic image aspect ratio"
-    parser.add_argument("--mosaic_tesserae_width", help=help, required=False,
+    parser.add_argument('--mosaic_tesserae_width',
+                        help=help, required=False,
                         default=100, type=int)
 
     help = "Resolution for source images in output mosiac "
     help += "format `height width` e.g. `40 40`"
-    parser.add_argument("--tessera_res", help=help, required=False,
+    parser.add_argument('--tessera_res',
+                        help=help, required=False,
                         default=(40, 40), nargs='+', type=int)
 
-    parser.add_argument("--disp_img_progress",
+    parser.add_argument('--disp_img_progress',
                         help="Display images as we progress through the script.",
                         action=argparse.BooleanOptionalAction)
 
-    parser.add_argument("--max_source_imgs",
+    parser.add_argument('--max_source_imgs',
                         help="Optional, maximum number of source images to " +
                         "get, else use all",
                         type=int)
 
-    parser.add_argument("--colour_space",
+    parser.add_argument('--colour_space',
                         help="Optional, select colour space to use; options" +
                         "are default 'RGB' or 'HSV'",
                         type=str,
                         default='RGB')
     
-    parser.add_argument("--save_tesserae",
-                        type=str)
-    
-        
-    parser.add_argument("--src_json",
-                        type=str)
+    parser.add_argument('--save_tesserae',
+                        help="File path to save tesserae to",
+                        type=str,
+                        required=False)
     
     args = parser.parse_args()
 
     # Call main script
     main(args.mosaic_fp_in,
         args.source_mylio_json,
-        args.src_json,
+        args.saved_tesserae,
         args.mosaic_fp_out,
         args.mosaic_tesserae_width,
         tuple(args.tessera_res),
