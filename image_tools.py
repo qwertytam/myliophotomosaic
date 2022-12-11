@@ -323,8 +323,8 @@ def generate_mosaic(mosaic_res : tuple,
 
     return canvas
 
-def get_means(max_source_imgs, src_json):
-    with open(src_json, 'r') as f:
+def get_means(max_source_imgs, saved_tesserae):
+    with open(saved_tesserae, 'r') as f:
         ft = f.read()
         src_imgs_json = json.loads(ft)
 

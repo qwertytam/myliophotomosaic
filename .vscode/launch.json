@@ -15,7 +15,7 @@
                     "--colour_space", "HSV",
                     "--max_source_imgs", "25",
                     "--save_tesserae", "./tesserae/",
-                    "--src_json", "./tesserae/tesserae.json"]
+                    "--saved_tesserae", "./tesserae/tesserae.json"]
         },
     ]
 }
