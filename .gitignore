@@ -1,9 +1,7 @@
 # Package specific
-*.jpg
-*.txt
-mo_imgs/
-out_imgs/
-src_imgs/
+mosaic_templates/
+mosaics/
+tesserae/
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
