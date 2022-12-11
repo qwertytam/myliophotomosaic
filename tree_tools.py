@@ -32,12 +32,9 @@ def find_best_match(target_res : tuple,
 
     Args:
         target_res: Target resolution as integer tuple of number of source
-            images in format (height, width)
-        
+            images in format (height, width)        
         mos_template: The mosaic template image as a array
-
         tree: Spatial KDTree that contains the source image rgb means
-
         rand_choice: How many of the closest match images to randomly choose
             from
     
