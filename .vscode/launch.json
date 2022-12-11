@@ -11,11 +11,12 @@
                     "--tessera_res", "40", "40",
                     "--mosaic_tesserae_width", "150",
                     "--mosaic_fp_in", "./mosaic_templates/IMG_3754.jpg",
-                    "--mosaic_fp_out", "./mosaics/debug.jpg",
+                    "--mosaic_fp_out", "./mosaics/IMG_3754_mosaic.jpg",
                     "--colour_space", "HSV",
-                    "--max_source_imgs", "25",
+                    // "--max_source_imgs", "25",
                     "--save_tesserae", "./tesserae/",
-                    "--saved_tesserae", "./tesserae/tesserae.json"]
+                    // "--saved_tesserae", "./tesserae/tesserae.json",
+                ]
         },
     ]
 }
