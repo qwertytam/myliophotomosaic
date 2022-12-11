@@ -76,43 +76,32 @@ def main(mosaic_fp_in : str,
 
     # Load in json for source image info from Mylio
     src_imgs_json = mylio.load_mylio_json(source_mylio_json)
-    if max_source_imgs is None:
-        max_source_imgs = len(src_imgs_json)
 
     # Create a list of all images as np arrays
     # Set size for mosaic images, loop through images and resize using
     # resize_image() function
-    # if saved_tesserae is not None:
-    #     images = 1
-    #     image_means = itools.get_means(max_source_imgs, saved_tesserae)
-    #     image_values = np.asarray(image_means)
-
-    if True:
-        images, image_values = itools.get_resize_source_imgs(
+    if source_tesserae_json is not None:
+        tesserae, tesserae_values = itools.get_tesserae(source_tesserae_json,
+                                                        max_source_imgs)
+    else:
+        tesserae, tesserae_values = itools.get_resize_source_imgs(
             src_imgs_json, tessera_res, max_source_imgs, colour_space,
             save_tesserae)
 
         # Let's have a look at one of the mosaic images
         if disp_img_progress:
-            itools.plt_img_from_arr(images[random.randrange(0, len(images)-1)])
-
-        # Convert list to np array
-        # images_array = itools.img_list_to_arr(images)
-
-        # Get mean of colour values for each image
-        # This will store the mean of each colour channel for each mosaic image
-        # image_values = itools.get_colour_mean(images_array)
-
+            itools.plt_img_from_arr(tesserae[random.\
+                randrange(0, len(tesserae)-1)])
 
     # Set KDTree for image_values
-    tree = ttools.set_tree(image_values)
+    tree = ttools.set_tree(tesserae_values)
 
     # Find the best match for each 'pixel' of the template
     image_idx = ttools.find_best_match(mosaic_res, mos_template, tree,
                                        min(max_source_imgs, 40))
     
     # Generate the mosaic
-    canvas = itools.generate_mosaic(mosaic_res, tessera_res, images, image_idx)
+    canvas = itools.generate_mosaic(mosaic_res, tessera_res, tesserae, image_idx)
     canvas.show()
 
     if mosaic_fp_out:
