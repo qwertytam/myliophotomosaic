@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from matplotlib import image
 from pillow_heif import register_heif_opener
 import json
+import sys
 
 register_heif_opener()
 
@@ -27,6 +28,7 @@ def load_img_as_arr(source : str, colour_space : str = 'RGB') -> np.ndarray:
         None
     """
     with Image.open(source) as im:
+        im = ImageOps.exif_transpose(im)
         if im.mode != 'RGB':
             im = im.convert('RGB')
         im_arr = np.asarray(im)
@@ -164,9 +166,6 @@ def get_colour_mean(imgs_array : np.ndarray) -> np.ndarray:
     Raises:
         None
     """
-    # Find means
-    # print(f'array shape: {imgs_array.shape}')
-    # print(f'array dim: {imgs_array.ndim}')
     num_channels = imgs_array.shape[imgs_array.ndim - 1]
     mns = np.apply_over_axes(np.mean, imgs_array, [1,2])
 
@@ -175,10 +174,10 @@ def get_colour_mean(imgs_array : np.ndarray) -> np.ndarray:
 
 
 def get_resize_source_imgs(src_json : dict,
-                            size : tuple,
-                            max_imgs : int = None,
-                            colour_space : str = 'RGB',
-                            src_save : str = None) -> list:
+                           size : tuple,
+                           max_source_imgs : int = None,
+                           colour_space : str = 'RGB',
+                           save_tesserae : str = None) -> list:
     """Gets list of images from json list
     
     Iterates through dictionary to get file path, checks if path is valid,
@@ -187,18 +186,14 @@ def get_resize_source_imgs(src_json : dict,
 
     Args:
         src_json: JSON dictionary, where each entry has the key 'FullPath'
-        that provides a file path and name for the image of interest
-        
+            that provides a file path and name for the image of interest
         size: Resolution for source images in output mosiac; format
-        `height width` e.g. `40 40`"
-
-        max_imgs: optional, if given, then only gets this number of images
-
-        colour_space: Colour space mode to load image array as. See Pillow
-        'Modes' for further info. Default used here is 'RGB'
-        
-        src_save: Directory to save resized source images to. Uses index
-        number for file name e.g. 123.jpg
+            `height width` e.g. `40 40`"
+        max_source_imgs: optional, if given, then only gets this number of images
+            colour_space: Colour space mode to load image array as. See Pillow
+            'Modes' for further info. Default used here is 'RGB'
+        save_tesserae: Directory to save resized source images to. Uses index
+            number for file name e.g. 123.jpg
 
     Returns:
         A list of the valid images as three-dimensional numpy arrays
@@ -206,68 +201,90 @@ def get_resize_source_imgs(src_json : dict,
     Raises:
         None
     """
-    images = []
+    src_ims = []
+    src_ims_cc_means = []
+    src_ims_meta = []
+
     skipped = 0
     skip_print_limit = 10
-    num_src_imgs = len(src_json)
-    print_int = 25
+    print_int = 10
+
+    num_src_ims = len(src_json)
+
     for i, src in enumerate(src_json):
+        idx = i - skipped
         # Check if path points to a valid file; if not skip
         try:
             im = load_img_as_arr(src['FullPath'], colour_space)
-            im = resize_img(img_from_arr(im), size)
-            images.append(im)
-            
-            num_channels = im.shape[im.ndim - 1]
-            im_mn = np.apply_over_axes(np.mean, im, [0, 1])
-            src_json[i]['channel_means'] = im_mn.reshape(-1).tolist()
-
-            # src_json[i]['im_arr'] = np.apply_over_axes(np.mean, im, [0, 1])
-            if src_save is not None:
-                canvas = Image.new(colour_space, size)
-                canvas.paste(img_from_arr(im))
-                if canvas.mode != 'RGB':
-                    canvas = canvas.convert('RGB')
-                canvas.save(src_save + str(i) + '.jpg')
 
         except FileNotFoundError as e:
             skipped += 1
             if skipped < skip_print_limit:
                 print(f'\n{(i+1):,}: {src}\n{e}\n')
+            continue
 
         except UnidentifiedImageError as e:
             skipped += 1
             if skipped < skip_print_limit:
                 print(f'\n{(i+1):,}: {src}\n{e}\n')
+            continue            
+        
+        # Get resized image array and append to our list
+        im = resize_img(img_from_arr(im), size)
+        src_ims.append(im)
+        
+        num_channels = im.shape[im.ndim - 1]
+        im_mn = np.apply_over_axes(np.mean, im, [0,1]).reshape(-1)
+        src_ims_cc_means.append(im_mn)
+        
+        # Build resized source image file path and name
+        sfp = save_tesserae + f'{idx:06d}' + '.jpg'
 
-        except OSError as e:
-            skipped += 1
-            if skipped < skip_print_limit:
-                print(f'\n{(i+1):,}: {src}\n{e}\n')
+        # Construct dictionary of image details and add to list
+        im_meta = {
+            'idx': idx,
+            'cc_means': im_mn.tolist(),
+            'source_file_path': sfp,
+            'original_file_path': src['FullPath'],
+        }
+        src_ims_meta.append(im_meta)
 
+        if save_tesserae is not None:
+            canvas = Image.new(colour_space, size)
+            canvas.paste(img_from_arr(im))
+            if canvas.mode != 'RGB':
+                canvas = canvas.convert('RGB')
+            canvas.save(sfp)
+
+        # Progress printing
         if (i+1) % print_int == 0:
             print(f'Processed {(i+1):,} ' +
-                f'found {len(images):,} ' +
+                f'found {len(src_ims):,} ' +
                 f'skipped {skipped:,} ' +
-                f'{(i+1)/num_src_imgs:.2%}  complete',
+                f'{(i+1)/num_src_ims:.2%}  complete',
                 end='\r')
         
-        if max_imgs is not None and len(images) >= max_imgs:
-            print(f'\nFound max images; stopping early at {len(images):,}')
+        # Stop if hit max image count
+        if max_source_imgs is not None and len(src_ims) >= max_source_imgs:
+            print(f'\nFound max images; stopping early at {len(src_ims):,}')
             break
 
+    # End of loop status
     print(f'\nProcessed {(i+1):,} ' +
-        f'found {len(images):,} ' +
+        f'found {len(src_ims):,} ' +
         f'skipped {skipped:,} ' +
-        f'{(i+1)/(num_src_imgs):.2%} complete')
-        
-    with open(src_save + 'src_json.json', 'w') as outfile:
-        json.dump(src_json, outfile)
+        f'{(i+1)/(num_src_ims):.2%} complete')
+    
+    if save_tesserae is not None:
+        with open(save_tesserae + 'tesserae.json', 'w') as outfile:
+            json.dump(src_ims_meta, outfile)
 
-    return images
+    src_ims = img_list_to_arr(src_ims)
+    return src_ims, np.asarray(src_ims_cc_means)
 
-def generate_mosaic(mo_res : tuple,
-                    src_res : tuple,
+
+def generate_mosaic(mosaic_res : tuple,
+                    tessera_res : tuple,
                     images : list, 
                     image_idx : np.ndarray,
                     colour_space : str = 'RGB',
@@ -279,16 +296,12 @@ def generate_mosaic(mo_res : tuple,
     don't overlap.
 
     Args:
-        mo_res: Target resolution for the mosaic
-
-        src_res: Target resolution of the source images
-
+        mosaic_res: Target resolution for the mosaic
+        tessera_res: Target resolution of the source images
         images: List of source images
-
         image_idx: Array with best source image match indicies
-        
         colour_space: Colour space mode to load image array as. See Pillow
-        'Modes' for further info. Default used here is 'RGB'
+            'Modes' for further info. Default used here is 'RGB'
     
     Return:
         Mosaic
@@ -297,15 +310,29 @@ def generate_mosaic(mo_res : tuple,
         None
     """
     canvas = Image.new(colour_space,
-                        (src_res[1]*mo_res[1],
-                         src_res[0]*mo_res[0])
-                    )
+                       (tessera_res[1]*mosaic_res[1],
+                        tessera_res[0]*mosaic_res[0])
+                       )
 
-    for i in range(mo_res[0]):
-        for j in range(mo_res[1]):
+    for i in range(mosaic_res[0]):
+        for j in range(mosaic_res[1]):
             arr = images[image_idx[i, j]]
-            x, y = j*src_res[1], i*src_res[0]
+            x, y = j*tessera_res[1], i*tessera_res[0]
             im = img_from_arr(arr)
             canvas.paste(im, (x,y))
 
     return canvas
+
+def get_means(max_source_imgs, src_json):
+    with open(src_json, 'r') as f:
+        ft = f.read()
+        src_imgs_json = json.loads(ft)
+
+    img_means = []
+    for i, src in enumerate(src_imgs_json):
+        if 'channel_means' in src:
+            img_means.append(src['channel_means'])
+        # else:
+            # print(f'uh oh for {src}')
+    
+    return img_means
