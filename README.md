@@ -65,6 +65,10 @@ python main.py --source mylio ./mosaic_templates/images.txt --tessera_res 40 40 
 python main.py --source json ./tesserae/tesserae.json --tessera_res 40 40 --mosaic_tesserae_width 150 --mosaic_fp_in ./mosaic_templates/mo_tmp.jpg --mosaic_fp_out ./mosaics/mosaic.jpg --colour_space HSV 
 ```
 
+## To dos
+1. Ability to process raw images. Ideal solution is to use the `rawpy` library,
+however local machine for some reason doesn't find the `rawpy` library using
+`pip`.
 
 ## References & Inspiration:
 - [Mylio Support Forum Topic](https://forum.mylio.com/t/list-of-file-path-and-names-for-search-or-filter-results/6093/4)
