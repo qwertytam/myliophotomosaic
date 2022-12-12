@@ -172,13 +172,112 @@ def get_colour_mean(imgs_array : np.ndarray) -> np.ndarray:
     # Result array is n x 1 x 1 x m dimensions, so reshape to n x m
     return mns.reshape(len(imgs_array), num_channels)
 
+    tesserae.append(tessera)
+    tesserae_mns.append(tessera_mn)
+    tesserae_meta.append(tessera_meta)
+    
+def build_tess_means_meta(src_im : np.ndarray,
+                          size : tuple,
+                          save_tesserae : str,
+                          idx : int,
+                          sfp : str):
+    """Builds tessera, tessera means and tessera meta info
+    
+    Builds a tessera from a source image, calculation colour channel means,
+    and puts together the relevant tessera meta information
 
-def get_resize_source_imgs(src_json : dict,
-                           size : tuple,
-                           max_tesserae : int = None,
-                           colour_space : str = 'RGB',
-                           save_tesserae : str = None) -> tuple:
-    """Gets list of images from json list
+    Args:
+        src_im: Numpy array representation of the source image
+        size: Resolution for source images in output mosiac; format
+            `height width` e.g. `40 40`"
+        save_tesserae: Directory to save resized source images to. Uses index
+            number for file name e.g. 123.jpg
+        idx: Integer index number for this tessera
+        sfp: String file path and name pointing towards source image. Used
+            to construct the meta info
+
+    Returns:
+        A three element tuple. First element is the numpy array representation
+        of the tessera. Second element is the colour channel menas as a numpy
+        array. Third element is a dictionary of the tessera meta information,
+        namely `idx` for the tessera index, `tessera_means` for the colour
+        channel means as a list, `tessera_fp` for the tessera file path and name
+        for what it can be saved to, and `source_fp` for the source image
+        file path and name
+    
+    Raises:
+        None
+    """
+    tessera = resize_img(img_from_arr(src_im), size)
+    tessera_mn = np.apply_over_axes(np.mean, tessera, [0,1]).reshape(-1)
+    tfp = ''
+    if save_tesserae is not None:
+        tfp = save_tesserae + f'{idx:06d}' + '.jpg'
+
+    tessera_meta = {
+        'idx': idx,
+        'tessera_means': tessera_mn.tolist(),
+        'tessera_fp': tfp,
+        'source_fp': sfp,
+    }
+    
+    return tessera, tessera_mn, tessera_meta
+    
+
+def save_tessera(colour_space, size, tessera, tessera_fp):
+    """Save the tessera
+    
+    Args:
+        colour_space: Pillow colour mode the tessera is in
+        size: Resolution for source images in output mosiac; format
+            `height width` e.g. `40 40`"
+        tessera: Numpy array representation of the tessera
+        tessera_fp: String file path and name where to save the tessera
+
+    Returns:
+        None
+    
+    Raises:
+        None
+    """
+    canvas = Image.new(colour_space, size)
+    canvas.paste(img_from_arr(tessera))
+    if canvas.mode != 'RGB':
+        canvas = canvas.convert('RGB')
+    canvas.save(tessera_fp)
+
+
+def print_built_te_progress(i, nte, skipped, max_tesserae, ow):
+    """Print progress
+    
+    Args:
+        i: Index
+        nte: Number of tesserae
+        skipped: Number of source images skipped
+        max_tesserae: Maximum number of tesserae to get
+        ow: If line will be overwritten or not
+
+    Returns:
+        None
+    
+    Raises:
+        None
+    """
+    es = '\r' if ow else ''
+    if not ow:
+        print('\n')
+    print(f'Processed {(i+1):,} source images ' +
+          f'found {nte:,} ' +
+          f'skipped {skipped:,} ' +
+          f'{(i+1)/max_tesserae:.2%}  complete',
+          end=es)
+
+def build_tesserae(src_json : dict,
+                   size : tuple,
+                   max_tesserae : int = None,
+                   colour_space : str = 'RGB',
+                   save_tesserae : str = None) -> tuple:
+    """Builds a list of images from a json list
     
     Iterates through dictionary to get file path, checks if path is valid,
     checks if image is valid (a three-dimensional array), and returns list
@@ -196,7 +295,10 @@ def get_resize_source_imgs(src_json : dict,
             number for file name e.g. 123.jpg
 
     Returns:
-        A list of the valid images as three-dimensional numpy arrays
+        A two element tuple. First element four dimensional representation of
+        tesserae, where dimension 1 is the nth tesserae, and the other three
+        dimensions are the colour channels. The second tuple element is the
+        array holding the colour channel means for each tesserae.
     
     Raises:
         None
@@ -218,9 +320,10 @@ def get_resize_source_imgs(src_json : dict,
 
     for i, src in enumerate(src_json):
         idx = i - skipped
-        # Check if path points to a valid file; if not skip
+        sfp = src['FullPath']
+
         try:
-            src_im = load_img_as_arr(src['FullPath'], colour_space)
+            src_im = load_img_as_arr(sfp, colour_space)
 
         except FileNotFoundError as e:
             skipped += 1
@@ -232,59 +335,102 @@ def get_resize_source_imgs(src_json : dict,
             skipped += 1
             if skipped < skip_print_limit:
                 print(f'\n{(i+1):,}: {src}\n{e}\n')
-            continue            
+            continue
         
-        # Get resized image array and append to our list
-        tessera = resize_img(img_from_arr(src_im), size)
-        tesserae.append(tessera)
+        except OSError as e:
+            skipped += 1
+            if skipped < skip_print_limit:
+                print(f'\n{(i+1):,}: {src}\n{e}\n')
+            continue              
         
-        # num_channels = im.shape[im.ndim - 1]
-        tessera_mn = np.apply_over_axes(np.mean, tessera, [0,1]).reshape(-1)
-        tesserae_mns.append(tessera_mn)
-        
-        # Build resized source image file path and name
-        tfp = save_tesserae + f'{idx:06d}' + '.jpg'
-
-        # Construct dictionary of image details and add to list
-        tessera_meta = {
-            'idx': idx,
-            'tessera_means': tessera_mn.tolist(),
-            'tessera_fp': tfp,
-            'source_fp': src['FullPath'],
-        }
-        tesserae_meta.append(tessera_meta)
+        ta, ta_mn, ta_meta = build_tess_means_meta(src_im, size,
+                                                   save_tesserae, idx, sfp)
+        tesserae.append(ta)
+        tesserae_mns.append(ta_mn)
+        tesserae_meta.append(ta_meta)
 
         if save_tesserae is not None:
-            canvas = Image.new(colour_space, size)
-            canvas.paste(img_from_arr(tessera))
-            if canvas.mode != 'RGB':
-                canvas = canvas.convert('RGB')
-            canvas.save(tfp)
+            save_tessera(colour_space, size, ta, ta_meta['tessera_fp'])
 
-        # Progress printing
         nte = len(tesserae)
         if (i+1) % print_int == 0:
-            print(f'Processed {(i+1):,} source images ' +
-                f'found {nte:,} ' +
-                f'skipped {skipped:,} ' +
-                f'{(i+1)/max_tesserae:.2%}  complete',
-                end='\r')
+            print_built_te_progress(i, nte, skipped, max_tesserae, True)
         
-        # Stop if hit max image count
         if nte >= max_tesserae:
-            print(f'\nFound max tesserae; stopping early at {nte:,}')
             break
 
     # End of loop status
-    print(f'\nProcessed {(i+1):,} source images ' +
-          f'found {nte:,} ' +
-          f'skipped {skipped:,} ' +
-          f'{(i+1)/max_tesserae:.2%}  complete')
+    print_built_te_progress(i, nte, skipped, max_tesserae, False)
     
     if save_tesserae is not None:
         with open(save_tesserae + 'tesserae.json', 'w') as outfile:
             json.dump(tesserae_meta, outfile)
 
+    tesserae = img_list_to_arr(tesserae)
+    return tesserae, np.asarray(tesserae_mns)
+
+
+def get_saved_tesserae(saved_tesserae : str,
+              max_tesserae : int = None) -> tuple:
+    """Get tesserae from preivous main.py script run
+
+    Read in tesserae and tesserae meta information from preivous main.py
+    script run.
+
+    Args:
+        saved_tesserae: String file path poiting to folder where tesserae
+            images and json are saved
+        max_tesserae: Integer maximum number of tesserae to read in. Reads in
+            tesserae in the order they were saved. Optional, default is all of
+            them.
+    
+    Return:
+        A two element tuple. First element four dimensional representation of
+        tesserae, where dimension 1 is the nth tesserae, and the other three
+        dimensions are the colour channels. The second tuple element is the
+        array holding the colour channel means for each tesserae.
+    
+    Raises:
+        None
+    """
+    # Read in json
+    with open(saved_tesserae, 'r') as f:
+        ft = f.read()
+        tesserae_json = json.loads(ft)
+    ntej = len(tesserae_json)
+    print(f'Read in tesserae_json with length {ntej:,}')
+    
+    tesserae = []
+    tesserae_mns = []
+
+    print_int = 10
+    
+    if max_tesserae is None:
+        max_tesserae = ntej
+    else:
+        max_tesserae = min(max_tesserae, ntej)
+
+    for i, tj in enumerate(tesserae_json):
+        if i != tj['idx']:
+            print(f'WARNING: i {i:,} does not equal idx {tj["idx"]:,}')
+        tesserae_mns.append(tj['tessera_means'])
+        tessera = load_img_as_arr(tj['tessera_fp'])
+        tesserae.append(tessera)
+        
+        # Progress printing
+        nte = len(tesserae)
+        if nte % print_int == 0:
+            print(f'Processed {nte:,} tesserae ' +
+                f'{nte/max_tesserae:.2%} complete',
+                end='\r')
+        
+        if nte >= max_tesserae:
+            break
+
+    # End of loop status
+    print(f'Processed {nte:,} tesserae ' +
+          f'{nte/max_tesserae:.2%} complete')
+    
     tesserae = img_list_to_arr(tesserae)
     return tesserae, np.asarray(tesserae_mns)
 
@@ -328,48 +474,3 @@ def generate_mosaic(mosaic_res : tuple,
             canvas.paste(im, (x,y))
 
     return canvas
-
-def get_tesserae(saved_tesserae : str,
-              max_tesserae : int = None) -> tuple:
-    # Read in json
-    with open(saved_tesserae, 'r') as f:
-        ft = f.read()
-        tesserae_json = json.loads(ft)
-    ntej = len(tesserae_json)
-    print(f'Read in tesserae_json with length {ntej:,}')
-    
-    tesserae = []
-    tesserae_mns = []
-
-    print_int = 10
-    
-    if max_tesserae is None:
-        max_tesserae = ntej
-    else:
-        max_tesserae = min(max_tesserae, ntej)
-
-    for i, tj in enumerate(tesserae_json):
-        if i != tj['idx']:
-            print(f'WARNING: i {i:,} does not equal idx {tj["idx"]:,}')
-        tesserae_mns.append(tj['tessera_means'])
-        tessera = load_img_as_arr(tj['tessera_fp'])
-        tesserae.append(tessera)
-        
-        # Progress printing
-        nte = len(tesserae)
-        if nte % print_int == 0:
-            print(f'Processed {nte:,} tesserae ' +
-                f'{nte/max_tesserae:.2%}  complete',
-                end='\r')
-        
-        # Stop if hit max image count
-        if max_tesserae is not None and nte >= max_tesserae:
-            print(f'\nFound max tesserae; stopping early at {nte:,}')
-            break
-
-    # End of loop status
-    print(f'\nProcessed {nte:,} tesserae ' +
-          f'{nte/max_tesserae:.2%}  complete')
-    
-    tesserae = img_list_to_arr(tesserae)
-    return tesserae, np.asarray(tesserae_mns)
