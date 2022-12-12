@@ -1,14 +1,15 @@
+from datetime import datetime
 import image_tools as itools
 import mylio
 import tree_tools as ttools
 import random
 import argparse
-import sys
-import numpy as np
+
+start_time = datetime.now()
+print(f'\nStarted script at {start_time:%H:%M:%S}\n')
 
 def main(mosaic_fp_in : str,
-        source_mylio_json : str,
-        source_tesserae_json : str = None,
+        source : list,
         mosaic_fp_out : str = None,
         mosaic_tesserae_width : int = 100,
         tessera_res : tuple = (40, 40),
@@ -23,9 +24,13 @@ def main(mosaic_fp_in : str,
     Args:
         mosaic_fp_in: File path and name string pointing towards image
             template for final mosaic
-        source_mylio_json: File path and name string pointing towards output
-            json from Mylio image library, where the json contains info
-            for tesserae file paths.
+        source: List with first elment either 'mlyio' to source tesserae images
+            from a mylio json, or 'json' to source tesserae images from a
+            json file with saved tesserae information from a previous run of
+            this script. The second element is a file path and name pointing
+            to either the text file with the mylio json, or the json file from
+            a previous run of this script. Mylio, each entry needs to
+            contain the keys `NonRaw`, `LocalName`, and `LocalFileNameNoExt`.
         source_tesserae_json: File path string pointing towards previously saved
             tesserae output. Optional, default is `None`.
         mosaic_fp_out: File path and name string for where to save final mosaic.
@@ -51,7 +56,6 @@ def main(mosaic_fp_in : str,
     Raises:
         None
     """
-
     # Load our main image
     face_im_arr = itools.load_img_as_arr(mosaic_fp_in, colour_space)
     if disp_img_progress:
@@ -63,49 +67,60 @@ def main(mosaic_fp_in : str,
     # Calculate target mosiac resolution
     ar = itools.get_img_arr_ar(face_im_arr)
     mosaic_res = (int(mosaic_tesserae_width*ar) ,mosaic_tesserae_width)
+    num_tesserae = mosaic_res[0] * mosaic_res[1]
+    print(f'Building mosiac with {num_tesserae:,} tesserae')
 
     # Create a template for the mosaic by index slicing the image, using the
     # step for rows and columns to divide the resolution
     mos_template = face_im_arr[::(height//mosaic_res[0]),
                                ::(width//mosaic_res[1])]
+    
     if disp_img_progress:
         itools.plt_img_from_arr(mos_template)
 
-    # Number of images required to fill the mosaic
-    num_imgs = mos_template[:,:, -1].size
-
-    # Load in json for source image info from Mylio
-    src_imgs_json = mylio.load_mylio_json(source_mylio_json)
-
-    # Create a list of all images as np arrays
-    # Set size for mosaic images, loop through images and resize using
-    # resize_image() function
-    if source_tesserae_json is not None:
-        tesserae, tesserae_values = itools.get_tesserae(source_tesserae_json,
-                                                        max_source_imgs)
-    else:
-        tesserae, tesserae_values = itools.get_resize_source_imgs(
+    if source[0] == 'mylio':
+        # Load in json for source image info from Mylio
+        src_imgs_json = mylio.load_mylio_json(source[1])
+        
+        # Create a list of all images as np arrays
+        # Set size for mosaic images, loop through images and resize using
+        # resize_image() function
+        tesserae, tesserae_values = itools.build_tesserae(
             src_imgs_json, tessera_res, max_source_imgs, colour_space,
             save_tesserae)
+    else:
+        tesserae, tesserae_values = itools.get_saved_tesserae(
+            source[1],
+            max_source_imgs)
 
-        # Let's have a look at one of the mosaic images
-        if disp_img_progress:
-            itools.plt_img_from_arr(tesserae[random.\
-                randrange(0, len(tesserae)-1)])
+    # Let's have a look at one of the mosaic images
+    if disp_img_progress:
+        itools.plt_img_from_arr(tesserae[random.\
+            randrange(0, len(tesserae)-1)])
 
     # Set KDTree for image_values
     tree = ttools.set_tree(tesserae_values)
 
     # Find the best match for each 'pixel' of the template
+    if max_source_imgs is None:
+        max_source_imgs = len(tesserae)
+
     image_idx = ttools.find_best_match(mosaic_res, mos_template, tree,
                                        min(max_source_imgs, 40))
     
     # Generate the mosaic
-    canvas = itools.generate_mosaic(mosaic_res, tessera_res, tesserae, image_idx)
+    canvas = itools.generate_mosaic(mosaic_res, tessera_res, tesserae,
+                                    image_idx)
+    
+    # if disp_img_progress:
     canvas.show()
 
     if mosaic_fp_out:
         canvas.save(mosaic_fp_out)
+        
+    end_time = datetime.now()
+    print(f"\nFinished script at {end_time:%H:%M:%S} " +
+          f"taking {(end_time-start_time)}\n")
 
 
 if __name__ == "__main__":
@@ -117,16 +132,15 @@ if __name__ == "__main__":
                         type=str,
                         required=True)
 
-    parser.add_argument('--source_mylio_json',
-                        help="Text file with json copied from Mylio " +
-                        "console for source images",
-                        type=str,
-                        required=False)
-            
-    parser.add_argument('--saved_tesserae',
-                        help="File path to saved tesserae from preivous run" +
-                        "of this script",
-                        required=False,
+    parser.add_argument('--source',
+                        help="Source for source images. " +
+                        "`mylio file.txt` for text file with json copied from" +
+                        " Mylio console for source images. " +
+                        "`json folder/file.json` file path and name to json " +
+                        "with info on saved tesserae from preivous run of " +
+                        "this script",
+                        required=True,
+                        nargs='+',
                         type=str)
     
     parser.add_argument('--mosaic_fp_out',
@@ -152,12 +166,14 @@ if __name__ == "__main__":
     parser.add_argument('--max_source_imgs',
                         help="Optional, maximum number of source images to " +
                         "get, else use all",
+                        required=False,
                         type=int)
 
     parser.add_argument('--colour_space',
                         help="Optional, select colour space to use; options" +
                         "are default 'RGB' or 'HSV'",
                         type=str,
+                        required=False,
                         default='RGB')
     
     parser.add_argument('--save_tesserae',
@@ -169,8 +185,7 @@ if __name__ == "__main__":
 
     # Call main script
     main(args.mosaic_fp_in,
-        args.source_mylio_json,
-        args.saved_tesserae,
+        args.source,
         args.mosaic_fp_out,
         args.mosaic_tesserae_width,
         tuple(args.tessera_res),
