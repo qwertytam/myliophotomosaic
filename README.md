@@ -60,6 +60,7 @@ Example usage:
 1. Reading in source images from Mylio json and saving tesserae to `./tesserae/`
 ```
 python main.py --source mylio ./mosaic_templates/images.txt --tessera_res 40 40 --mosaic_tesserae_width 150 --mosaic_fp_in ./mosaic_templates/mo_tmp.jpg --mosaic_fp_out ./mosaics/mosaic.jpg --colour_space HSV --save_tesserae ./tesserae/
+```
 2. Reading in tesserae from previously run script
 ```
 python main.py --source json ./tesserae/tesserae.json --tessera_res 40 40 --mosaic_tesserae_width 150 --mosaic_fp_in ./mosaic_templates/mo_tmp.jpg --mosaic_fp_out ./mosaics/mosaic.jpg --colour_space HSV 
