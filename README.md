@@ -33,9 +33,13 @@ package dependencies
 1. Select photos in Mylio using keyboard and/or mouse to use in the Mosaic
 2. Show the console in Mylio under `Help > Console`
 3. Create a SQL view to return full paths for you (copy this all into one line).
-This is for Windows - for Mac, replace the ‘\’ with a ‘/’.
+This is for Windows
 ```
 old_sql CREATE VIEW localdirs as WITH RECURSIVE FoldersAndChildren(Id, UniqueHash, LocalName, FolderName) AS(VALUES(0, X'', '', '') UNION SELECT DISTINCT Folder.id, Folder.uniqueHash parentHash, FoldersAndChildren.localname || coalesce(nullif(Folder.localRootOrTemporaryPath, ''), Folder.localName) || '\', coalesce(nullif(Folder.localRootOrTemporaryPath, ''), Folder.localName) from Folder join FoldersAndChildren on FoldersAndChildren.UniqueHash = Folder.ParentFolderHash) SELECT * from FoldersAndChildren where Id <> 0
+```
+For Mac (same as Windows but the the ‘\’ has been replaced with a ‘/’)
+```
+old_sql CREATE VIEW localdirs as WITH RECURSIVE FoldersAndChildren(Id, UniqueHash, LocalName, FolderName) AS(VALUES(0, X'', '', '') UNION SELECT DISTINCT Folder.id, Folder.uniqueHash parentHash, FoldersAndChildren.localname || coalesce(nullif(Folder.localRootOrTemporaryPath, ''), Folder.localName) || '/', coalesce(nullif(Folder.localRootOrTemporaryPath, ''), Folder.localName) from Folder join FoldersAndChildren on FoldersAndChildren.UniqueHash = Folder.ParentFolderHash) SELECT * from FoldersAndChildren where Id <> 0
 ```
 4. You can try this out using `SELECT * from localdirs limit 20`
 5. If you need to redo the view for some reason, run `sql drop view localdirs`
